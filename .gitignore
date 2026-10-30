@@ -17,3 +17,10 @@ app/selftest.json
 app/*.bak-*
 app/照片输出/
 app/自检输出/
+
+# 构建与发版产物（不入库，随 Release 分发）
+output/
+build/
+dist/
+*.zip
+models/
