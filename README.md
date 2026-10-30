@@ -14,14 +14,31 @@
 
 | 发行包 | 解压体积 | 下载体积 | 内含权重 | 适合谁 |
 | --- | --- | --- | --- | --- |
-| **完整包** `HivisionIDPhotos-v1.1.0-full.zip` | 774MB | 565MB | 5 个 onnx 全部内置 | 无网络、不想等下载、拷给别人直接用 |
-| **精简包** `HivisionIDPhotos-v1.1.0-slim.zip` | 239MB | 107MB | 不含，首次按需下载 / 导入模型包 | 网络可用，想省磁盘与下载时间 |
-| **模型包** `hivision-models-v1.1.0.zip` | — | 458MB | 5 个 onnx，独立分发 | 给精简包补模型，或只更新模型不换程序 |
+| **完整包** `HivisionIDPhotos-v1.1.2-full.zip` | 774MB | 565MB | 5 个 onnx 全部内置 | 无网络、不想等下载、拷给别人直接用 |
+| **精简包** `HivisionIDPhotos-v1.1.2-slim.zip` | 239MB | 107MB | 不含，首次按需下载 / 导入模型包 | 网络可用，想省磁盘与下载时间 |
+| **模型包** `hivision-models-v1.1.2.zip` | — | 458MB | 5 个 onnx，独立分发 | 给精简包补模型，或只更新模型不换程序 |
 
 两个发行包**代码完全一致**，差别只有 `_internal\hivision\creator\**\weights\*.onnx` 是否存在。
 MTCNN 人脸检测用的 `onet / pnet / rnet.onnx`（合计几 MB，由 `mtcnn-runtime` 自带的必需件）两个包都有，不单列。
 
 获取方式：仓库 [Releases](https://github.com/kitblue/HivisionIDPhotos-Desktop/releases)（或 Gitea 同名仓库的 Release），解压即用，无需安装。
+
+### 解压到哪里都行（长路径适配）
+
+Windows 单条路径上限 260 字符，`_internal\onnxruntime\capi\onnxruntime_pybind11_state.pyd` 路径一旦超限，
+系统加载器直接报 `文件名或扩展名太长`，而且崩在 PyInstaller 引导阶段（`python311.dll` 都没加载完），
+Python 代码来不及做任何补救。所以发行包把 exe 拆成了两层：
+
+| 文件 | 作用 |
+| --- | --- |
+| `HivisionIDPhotos.exe` | 6KB C# 启动器。用 `GetShortPathNameW` 把程序目录转成 8.3 短路径，再用短路径拉起主程序 |
+| `HivisionIDPhotos.real.exe` | 真正的主程序（PyInstaller 产物），不要直接双击，也不要删 |
+
+启动器会把用户实际解压的长路径通过 `HV_ORIG_HOME` 传给主程序，界面状态栏与日志仍显示真实路径；
+短名不可用（磁盘关闭 8.3 支持）时自动降级为原路径启动，启动失败弹出提示引导换短路径。
+另有运行期 hook `app/pyi_rth_shortpath.py` 作为第二道防线（`sys._MEIPASS` 短名化 / 复制到 `%TEMP%\hidp_ort`）。
+
+实测：程序放在 291 字符深目录（pyd 全路径 278 字符）时，自检输出 5 张照片正常、GUI 正常运行。
 
 ## 三步出片
 
@@ -102,7 +119,7 @@ MTCNN 人脸检测用的 `onet / pnet / rnet.onnx`（合计几 MB，由 `mtcnn-r
 模型包是一个固定结构的 zip，解压后与程序资源目录一一对应，安装即复制：
 
 ```
-hivision-models-v1.1.0.zip
+hivision-models-v1.1.2.zip
 ├─ manifest.json                    # 版本、每个模型的大小与 sha256、来源 URL
 └─ hivision/creator/…
    ├─ weights/{hivision_modnet,modnet_photographic_portrait_matting,rmbg-1.4,birefnet-v1-lite}.onnx
@@ -114,7 +131,7 @@ hivision-models-v1.1.0.zip
 ```bat
 python scripts\pack_models.py                          :: 用本地已下载的权重组包，输出 output\hivision-models-v<ver>.zip
 python scripts\pack_models.py --model rmbg-1.4 --verify :: 只打指定模型并校验 sha256
-python scripts\pack_models.py --out D:\hivision-models-v1.1.0.zip
+python scripts\pack_models.py --out D:\hivision-models-v1.1.2.zip
 ```
 
 安装方式三选一，校验失败会在日志里报出具体文件，不会写坏已有权重：
@@ -167,6 +184,7 @@ HivisionIDPhotos-Desktop/
 │  └─ gen_changelog.py        # 按提交记录自动生成 CHANGELOG.md
 ├─ docs/images/               # 本文档所用界面与输出示例图
 ├─ CHANGELOG.md               # 自动生成的更新日志
+├─ scripts/launcher/            # 长路径启动器源码 Launcher.cs + 编译好的 Launcher.exe
 ├─ 启动.bat / 启动-调试.bat
 └─ 使用说明.txt
 ```
@@ -184,8 +202,8 @@ python scripts\build_packages.py --variant full --keep-dir --no-zip
 脚本做的事：`PyInstaller --onedir`（窗口模式、`--add-data` 拷 hivision / assets / demo、`--collect-all mtcnnruntime`）→ 构建完对 slim 包剥离 `_internal` 下的 5 个 onnx → 写各自的使用说明 → 压缩成 zip，输出到 `output/`：
 
 ```
-output/HivisionIDPhotos-v1.1.0-full/  … 774MB + 同名 .zip 565MB
-output/HivisionIDPhotos-v1.1.0-slim/  … 239MB + 同名 .zip 107MB
+output/HivisionIDPhotos-v1.1.2-full/  … 774MB + 同名 .zip 565MB
+output/HivisionIDPhotos-v1.1.2-slim/  … 239MB + 同名 .zip 107MB
 ```
 
 发版顺序建议：

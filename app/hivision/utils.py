@@ -8,6 +8,25 @@ import base64
 from hivision.plugin.watermark import Watermarker, WatermarkerStyles
 
 
+def imread_unicode(file_path, flags=cv2.IMREAD_COLOR):
+    """读取图片，兼容含中文/非 ASCII 字符的路径。
+
+    Windows 下 cv2.imread 使用 ANSI 编码打开文件，遇到中文路径会直接返回 None；
+    改用 np.fromfile 读字节再 cv2.imdecode，即可完全规避该限制。
+
+    :param file_path: 图片路径（可为中文路径）
+    :param flags: 同 cv2.imread 的 flags
+    :return: BGR/灰度 numpy 数组；读取失败返回 None
+    """
+    try:
+        data = np.fromfile(file_path, dtype=np.uint8)
+    except (OSError, ValueError, TypeError):
+        return None
+    if data is None or data.size == 0:
+        return None
+    return cv2.imdecode(data, flags)
+
+
 def save_image_dpi_to_bytes(image: np.ndarray, output_image_path: str = None, dpi: int = 300):
     """
     设置图像的DPI（每英寸点数）并返回字节流

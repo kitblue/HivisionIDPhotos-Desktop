@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 HivisionIDPhotos 桌面版（Windows 原生 UI）
 
@@ -40,7 +40,7 @@ if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
 APP_NAME = "HivisionIDPhotos 证件照制作工具（桌面版）"
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.1.2"
 
 
 def _enable_high_dpi():
@@ -211,6 +211,20 @@ def _default_output_root():
 
 OUTPUT_ROOT = _default_output_root()
 AMERICAN_BG_PATH = os.path.join(BASE_DIR, "demo", "assets", "american-style.png")
+
+
+def pretty_path(path):
+    """启动器用 8.3 短路径拉起主程序时，界面里还原成用户实际解压的长路径显示"""
+    orig = os.environ.get("HV_ORIG_HOME")
+    if orig and path:
+        try:
+            na = os.path.normcase(os.path.abspath(APP_HOME))
+            np = os.path.normcase(os.path.abspath(path))
+            if np == na or np.startswith(na + os.sep):
+                return orig + os.path.abspath(path)[len(os.path.abspath(APP_HOME)):]
+        except Exception:
+            pass
+    return path
 
 
 # ---------------------------------------------------------------- 工具函数
@@ -736,7 +750,8 @@ class DesktopApp(ctk.CTk):
         self.progress.set(0)
         self.lbl_status = ctk.CTkLabel(bar, text="就绪", font=self.f_small, text_color=C_MUTED)
         self.lbl_status.pack(side="left")
-        shown = OUTPUT_ROOT if len(OUTPUT_ROOT) <= 52 else "..." + OUTPUT_ROOT[-50:]
+        _shown_root = pretty_path(OUTPUT_ROOT)
+        shown = _shown_root if len(_shown_root) <= 52 else "..." + _shown_root[-50:]
         ctk.CTkLabel(bar, text="输出：%s" % shown, font=self.f_small,
                      text_color=C_MUTED).pack(side="right", padx=12)
 
@@ -1748,7 +1763,7 @@ def main():
     app.log("%s v%s 启动" % (APP_NAME, APP_VERSION))
     app._auto_import_bundles()
     app.log("模型目录：%s" % os.path.join(BASE_DIR, "hivision", "creator", "weights"))
-    app.log("输出目录：%s" % OUTPUT_ROOT)
+    app.log("输出目录：%s" % pretty_path(OUTPUT_ROOT))
     app.after(500, app._ensure_models_on_start)
     app.mainloop()
 

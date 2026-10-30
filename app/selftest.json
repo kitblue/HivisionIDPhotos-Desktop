@@ -1,8 +1,8 @@
 {
   "frozen": false,
-  "base_dir": "C:\\Users\\ike\\hb\\HivisionIDPhotos\\app",
-  "app_home": "C:\\Users\\ike\\hb\\HivisionIDPhotos\\app",
-  "output_root": "C:\\Users\\ike\\hb\\HivisionIDPhotos\\app\\照片输出",
+  "base_dir": "C:\\Users\\ike\\AppData\\Roaming\\Tencent\\Marvis\\User\\90ACF4861308C3A79D13220FF22A0AAE\\workspace\\conv_e891f6bb80b24e42977b65656573c6fd\\temp\\src\\hivisionidphotos-desktop\\app",
+  "app_home": "C:\\Users\\ike\\AppData\\Roaming\\Tencent\\Marvis\\User\\90ACF4861308C3A79D13220FF22A0AAE\\workspace\\conv_e891f6bb80b24e42977b65656573c6fd\\temp\\src\\hivisionidphotos-desktop\\app",
+  "output_root": "C:\\Users\\ike\\AppData\\Roaming\\Tencent\\Marvis\\User\\90ACF4861308C3A79D13220FF22A0AAE\\workspace\\conv_e891f6bb80b24e42977b65656573c6fd\\temp\\src\\hivisionidphotos-desktop\\app\\照片输出",
   "ok": true,
   "error": "",
   "input_shape": [
@@ -10,7 +10,7 @@
     764,
     3
   ],
-  "elapsed": 0.87,
+  "elapsed": 1.02,
   "standard_shape": [
     413,
     295,

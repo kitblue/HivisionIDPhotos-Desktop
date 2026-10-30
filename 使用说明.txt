@@ -1,23 +1,27 @@
-HivisionIDPhotos 证件照制作工具 · Windows 桌面版 v1.1.0
+HivisionIDPhotos 证件照制作工具 · Windows 桌面版 v1.1.2
 ================================================================
 
 一、先分清你拿到的是哪个包
 --------------
 本版本提供两种发行包，代码完全一样，只有「有没有模型权重」的区别：
 
-  · HivisionIDPhotos-v1.1.0-full  完整包：5 个 onnx 模型已内置，解压即用，全程离线。
-  · HivisionIDPhotos-v1.1.0-slim  精简包：不含模型，体积小；首次用到某模型时按需下载，
-                                  或导入官方模型包 hivision-models-v1.1.0.zip。
-  · hivision-models-v1.1.0.zip    模型包：可单独分发，用来给精简包补模型。
+  · HivisionIDPhotos-v1.1.2-full  完整包：5 个 onnx 模型已内置，解压即用，全程离线。
+  · HivisionIDPhotos-v1.1.2-slim  精简包：不含模型，体积小；首次用到某模型时按需下载，
+                                  或导入官方模型包 hivision-models-v1.1.2.zip。
+  · hivision-models-v1.1.2.zip    模型包：可单独分发，用来给精简包补模型。
 
 MTCNN 人脸检测用的 onet/pnet/rnet.onnx（几 MB）两个包都自带，不用管。
 
 二、怎么启动
 --------------
-1. 把 zip 解压到一个较短的路径，例如 D:\HivisionIDPhotos。
-   路径尽量短、尽量不含中文，避免触发 Windows 260 字符路径限制（onnxruntime 对此敏感）。
-2. 双击 HivisionIDPhotos.exe，程序窗口打开。
-   · 若窗口没出现，用命令行在同一目录执行 HivisionIDPhotos.exe，可以看到报错信息。
+1. 把 zip 解压到任意目录即可，中文路径也已支持。
+   程序自带长路径自适应：启动时先把程序目录转成 8.3 短路径再拉起主程序，
+   可绕开 Windows 260 字符路径限制（onnxruntime 对此敏感）。
+2. 双击 HivisionIDPhotos.exe（启动器），程序窗口打开。
+   · HivisionIDPhotos.real.exe 是真正的主程序，请勿直接双击，也不要删除或改名。
+   · 万一该磁盘关闭了 8.3 短名支持、仍提示「文件名或扩展名太长」，
+     把整个文件夹移到磁盘根目录附近再运行，例如 D:\HivisionIDPhotos。
+   · 若窗口没出现，可先看同目录下的 启动-调试.bat，运行后会保留控制台报错信息。
 
 不需要安装 Python、不打开浏览器，所有推理都在本机完成，照片不上传。
 
@@ -27,7 +31,7 @@ MTCNN 人脸检测用的 onet/pnet/rnet.onnx（几 MB）两个包都自带，不
    选 rmbg-1.4 / birefnet 才会下大文件）。
 2. 界面左侧「AI 模型」卡片 ->「下载 / 补齐模型」，缺什么补什么；
    卡片底部一行会显示「本地模型：N/5 已就绪」，缺几个一目了然。
-3. 点「导入模型包（.zip）…」选 hivision-models-v1.1.0.zip；
+3. 点「导入模型包（.zip）…」选 hivision-models-v1.1.2.zip；
    或把该 zip 放到 exe 同级的 models\ 文件夹，下次启动自动导入。
    已有散装 onnx 的，用「从文件夹导入权重…」按文件名自动对号入座。
    导入是增量的：已存在且大小一致的模型直接跳过，可以放心重复导入。
@@ -72,7 +76,7 @@ MTCNN 人脸检测用的 onet/pnet/rnet.onnx（几 MB）两个包都自带，不
 
 七、目录结构（发行包）
 --------------
-HivisionIDPhotos-v1.1.0-<full|slim>\
+HivisionIDPhotos-v1.1.2-<full|slim>\
   ├─ HivisionIDPhotos.exe      主程序
   ├─ 使用说明.txt              本文件
   ├─ models\                   （可选）放模型包 zip 或散装 onnx，启动自动导入

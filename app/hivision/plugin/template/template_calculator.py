@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import json
 from hivision.creator.rotation_adjust import rotate_bound
+from hivision.utils import imread_unicode
 import os
 
 base_path = os.path.dirname(os.path.abspath(__file__))
@@ -39,7 +40,9 @@ def generte_template_photo(template_name: str, input_image: np.ndarray) -> np.nd
 
     # 读取模板图像
     template_image_path = os.path.join(base_path, 'assets', f'{template_name}.png')
-    template_image = cv2.imread(template_image_path, cv2.IMREAD_UNCHANGED)
+    template_image = imread_unicode(template_image_path, cv2.IMREAD_UNCHANGED)
+    if template_image is None:
+        raise IOError("无法读取模板图片：%s" % template_image_path)
 
     # 无损旋转
     rotated_image = rotate_bound(input_image, -1 * rotation)[0]

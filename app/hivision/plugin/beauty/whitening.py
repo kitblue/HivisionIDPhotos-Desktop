@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import os
 import gradio as gr
+from hivision.utils import imread_unicode
 
 
 class LutWhite:
@@ -46,11 +47,19 @@ class MakeWhiter:
 
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
-default_lut = cv2.imread(os.path.join(base_dir, "lut/lut_origin.png"))
-make_whiter = MakeWhiter(default_lut)
+_LUT_PATH = os.path.join(base_dir, "lut", "lut_origin.png")
+default_lut = imread_unicode(_LUT_PATH)
+# LUT 读取失败时不再让整个程序崩溃：降级为跳过美白处理，并在控制台留下可定位的提示
+if default_lut is None:
+    make_whiter = None
+    print("[WARN] 美白 LUT 加载失败，已自动跳过美白处理：%s" % _LUT_PATH)
+else:
+    make_whiter = MakeWhiter(default_lut)
 
 
 def make_whitening(image, strength):
+    if make_whiter is None:
+        return image
     image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
     iteration = strength // 10
@@ -65,6 +74,8 @@ def make_whitening(image, strength):
 
 
 def make_whitening_png(image, strength):
+    if make_whiter is None:
+        return image
     image = cv2.cvtColor(np.array(image), cv2.COLOR_RGBA2BGRA)
 
     b, g, r, a = cv2.split(image)

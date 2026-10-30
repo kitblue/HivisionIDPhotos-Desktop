@@ -7,6 +7,7 @@ from hivision.utils import (
     resize_image_to_kb,
     add_watermark,
     save_image_dpi_to_bytes,
+    imread_unicode,
 )
 from hivision.creator.layout_calculator import (
     generate_layout_array,

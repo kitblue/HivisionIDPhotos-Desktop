@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """一键构建两个发行包：带模型（full）与不带模型（slim）
 
 用法：
@@ -55,6 +55,16 @@ USAGE_FULL = """HivisionIDPhotos 桌面版 v{ver}（完整包 / 内置模型）
 
 若需更换或修复模型，可用「导入模型包（.zip）…」重新导入官方模型包。
 
+【目录里两个 exe 的区别】
+  HivisionIDPhotos.exe        启动器，请双击这个（会自动处理长路径问题）
+  HivisionIDPhotos.real.exe   真正的主程序，请勿直接双击或删除
+
+【路径过长怎么办】
+Windows 单条路径上限为 260 字符。启动器会先把程序目录转换成 8.3 短路径再拉
+起主程序，所以即使解压在较深的目录里通常也能正常运行。
+若该磁盘关闭了 8.3 短名支持，或仍提示「文件名或扩展名太长」，请把整个文件夹
+移到磁盘根目录附近再运行，例如 D:\\HivisionIDPhotos。
+
 照片默认输出到程序目录下的「照片输出」文件夹。
 """
 
@@ -101,6 +111,29 @@ def strip_weights(pkg_dir):
     return removed
 
 
+def install_launcher(pkg_dir):
+    """把主程序改名，装入 8.3 短路径启动器，规避 MAX_PATH(260) 限制。
+
+    路径过长时 PyInstaller 引导程序在加载 python311.dll / base_library.zip 时就会失败，
+    Python 层代码来不及执行，因此只能由外层 exe 先把目录换成短路径再拉起主程序。
+    """
+    launcher = os.path.join(BASE, "scripts", "launcher", "Launcher.exe")
+    main_exe = os.path.join(pkg_dir, "HivisionIDPhotos.exe")
+    if not os.path.isfile(launcher):
+        print("警告：未找到 scripts\\launcher\\Launcher.exe，跳过长路径启动器")
+        return False
+    if not os.path.isfile(main_exe):
+        print("警告：未找到主程序 exe，跳过长路径启动器")
+        return False
+    real_exe = os.path.join(pkg_dir, "HivisionIDPhotos.real.exe")
+    if os.path.exists(real_exe):
+        os.remove(real_exe)
+    os.rename(main_exe, real_exe)
+    shutil.copy2(launcher, main_exe)
+    print("已装入长路径启动器：HivisionIDPhotos.exe -> HivisionIDPhotos.real.exe")
+    return True
+
+
 def zip_dir(src_dir, out_zip, top_name):
     """打包成 zip，顶层目录为 top_name，方便用户直接解压"""
     files = []
@@ -119,6 +152,7 @@ def run_build(python, name, distpath, workpath, specpath, log=print):
     cmd = [
         python, "-m", "PyInstaller",
         "--noconfirm", "--clean", "--windowed", "--onedir",
+        "--runtime-hook", os.path.join(BASE, "app", "pyi_rth_shortpath.py"),
         "--name", name,
         "--icon", os.path.join(BASE, "app", "assets", "hivisionai.ico"),
         "--add-data", os.path.join(BASE, "app", "assets") + ";assets",
@@ -165,6 +199,7 @@ def build_variant(variant, version, python, keep_dir, do_zip):
         shutil.rmtree(target)
     os.makedirs(OUTPUT, exist_ok=True)
     shutil.move(pkg, target)
+    install_launcher(target)
 
     usage = USAGE_SLIM if variant == "slim" else USAGE_FULL
     with open(os.path.join(target, "使用说明.txt"), "w", encoding="utf-8") as fh:
