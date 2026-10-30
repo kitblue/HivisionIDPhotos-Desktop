@@ -14,7 +14,10 @@ HivisionIDPhotos 桌面版（Windows 原生 UI）
     · 人脸旋转对齐 / 水平翻转 / JPEG 输出
     · 模板照（2 款）
 
-所有推理在本地完成，内置模型，不联网、不依赖浏览器。
+发行包分两种：
+    · 带模型包（full）：权重内置，装好即离线可用；
+    · 不带模型（slim）：权重不随包分发，首次按需从官方源下载，或导入官方模型包 zip。
+两者代码完全一致，区别只在 _internal 下是否存在 onnx 权重。
 """
 
 import os
@@ -37,7 +40,7 @@ if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
 APP_NAME = "HivisionIDPhotos 证件照制作工具（桌面版）"
-APP_VERSION = "1.0.5"
+APP_VERSION = "1.1.0"
 
 
 def _enable_high_dpi():
@@ -124,6 +127,8 @@ from hivision.creator.choose_handler import (
 )
 from hivision.plugin.template.template_calculator import generte_template_photo
 from demo.locales import LOCALES
+import model_manager as mm
+import model_bundle as mb
 
 import tkinter as tk
 from tkinter import filedialog, messagebox
@@ -880,6 +885,26 @@ class DesktopApp(ctk.CTk):
         self.lbl_face_hint = ctk.CTkLabel(b, text="", font=self.f_small, text_color=C_MUTED,
                                           anchor="w", justify="left", wraplength=330)
         self.lbl_face_hint.pack(fill="x")
+        self.btn_models = ctk.CTkButton(b, text="下载 / 补齐模型", height=30, corner_radius=8,
+                                        font=self.f_small, fg_color=C_SOFT,
+                                        hover_color=C_SOFT_HOVER, text_color=C_TEXT,
+                                        command=self._on_download_models)
+        self.btn_models.pack(fill="x", pady=(8, 0))
+        self.btn_import = ctk.CTkButton(b, text="导入模型包（.zip）…", height=28, corner_radius=8,
+                                        font=self.f_small, fg_color="transparent",
+                                        hover_color=C_SOFT_HOVER, text_color=C_MUTED,
+                                        border_width=1, border_color=C_BORDER,
+                                        command=self._on_import_bundle)
+        self.btn_import.pack(fill="x", pady=(5, 0))
+        self.btn_import_dir = ctk.CTkButton(b, text="从文件夹导入权重…", height=28, corner_radius=8,
+                                            font=self.f_small, fg_color="transparent",
+                                            hover_color=C_SOFT_HOVER, text_color=C_MUTED,
+                                            border_width=1, border_color=C_BORDER,
+                                            command=self._on_import_bundle_dir)
+        self.btn_import_dir.pack(fill="x", pady=(5, 0))
+        self.lbl_model_state = ctk.CTkLabel(b, text="", font=self.f_small, text_color=C_MUTED,
+                                            anchor="w", justify="left", wraplength=330)
+        self.lbl_model_state.pack(fill="x", pady=(6, 0))
         self._refresh_model_hints()
 
         # ---- 构图
@@ -1070,8 +1095,190 @@ class DesktopApp(ctk.CTk):
                 text="特点：%s" % self._hint_of(MATTING_MODEL_HINTS, self.var_matting.get()))
             self.lbl_face_hint.configure(
                 text="特点：%s" % self._hint_of(FACE_DETECT_HINTS, self.var_face.get()))
+            if hasattr(self, "lbl_model_state"):
+                self.lbl_model_state.configure(text=self._model_state_text())
         except Exception:
             pass
+
+    def _model_state_text(self):
+        """模型状态：本地已就绪 / 缺失，并标注是内置还是需下载"""
+        try:
+            have = [n for n in mm.MODELS if mm.is_present(n, self.WEIGHTS_ROOT)]
+            lack = len(mm.MODELS) - len(have)
+        except Exception:
+            return ""
+        if lack == 0:
+            return "本地模型：%d/%d 已就绪，可完全离线" % (len(have), len(mm.MODELS))
+        return "本地模型：%d/%d，缺 %d 个（可下载或导入模型包）" % (len(have), len(mm.MODELS), lack)
+
+    # ---------------- 模型在线获取
+    WEIGHTS_ROOT = os.path.join(BASE_DIR, "hivision", "creator", "weights")
+
+    def _needed_models(self):
+        """当前选择真正需要的模型：当前抠图模型 + （可选）RetinaFace 人脸检测"""
+        names = [self.var_matting.get()]
+        if self.var_face.get() == "retinaface-resnet50":
+            names.append("retinaface-resnet50")
+        return [n for n in names if n in mm.MODELS]
+
+    def _missing_of(self, names):
+        return [n for n in names if not mm.is_present(n, self.WEIGHTS_ROOT)]
+
+    def _ensure_models_on_start(self):
+        """启动时只检查当前所需模型，缺了先问用户再下载，不静默联网"""
+        miss = self._missing_of(self._needed_models())
+        if not miss:
+            self.log("模型就绪：%s" % self.var_matting.get())
+            return
+        size = sum(mm.MODELS[n]["size"] for n in miss) / 1048576.0
+        desc = "、".join(mm.MODELS[n]["desc"] for n in miss)
+        self.log("缺少模型：%s" % "、".join(miss))
+        if messagebox.askyesno(
+            "需要下载模型",
+            "当前选择的模型尚未下载：\n\n%s\n\n共约 %.0fMB，是否立即从官方源下载？\n"
+            "（下载后可完全离线使用；取消后可在「AI 模型」卡片点击「下载 / 补齐模型」重试）"
+            % (desc, size),
+        ):
+            self._download_models(miss)
+        else:
+            self.log("已跳过模型下载，制作前请先补齐模型")
+
+    def _on_download_models(self):
+        miss = self._missing_of(list(mm.MODELS))
+        if not miss:
+            messagebox.showinfo("模型齐全", "全部模型均已下载，可离线使用。")
+            return
+        size = sum(mm.MODELS[n]["size"] for n in miss) / 1048576.0
+        lines = "\n".join("· %s（%.0fMB）" % (mm.MODELS[n]["desc"], mm.MODELS[n]["size"] / 1048576.0) for n in miss)
+        if messagebox.askyesno("下载模型", "将下载以下 %d 个模型，共约 %.0fMB：\n\n%s\n\n是否继续？"
+                               % (len(miss), size, lines)):
+            self._download_models(miss)
+
+    def _download_models(self, names):
+        if getattr(self, "_downloading", False):
+            messagebox.showinfo("正在下载", "模型正在下载中，请稍候。")
+            return
+        self._downloading = True
+        try:
+            self.btn_models.configure(state="disabled", text="下载中…")
+        except Exception:
+            pass
+
+        def worker():
+            state = {"t": 0.0}
+
+            def progress(done, total):
+                now = time.time()
+                if now - state["t"] < 0.5 and done != total:  # 限流，避免刷屏
+                    return
+                state["t"] = now
+                pct = 100.0 * done / total if total else 0
+                self.log("下载中 %.1f%%  %.1f/%.1f MB" % (pct, done / 1048576.0, total / 1048576.0))
+
+            ok, failed = mm.download_many(names, self.WEIGHTS_ROOT, progress=progress,
+                                          log=lambda m: self.log(m))
+            self.after(0, lambda: self._download_done(ok, failed))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _download_done(self, ok, failed):
+        self._downloading = False
+        try:
+            self.btn_models.configure(state="normal", text="下载 / 补齐模型")
+        except Exception:
+            pass
+        if failed:
+            messagebox.showwarning(
+                "部分模型下载失败",
+                "成功 %d 个，失败 %d 个。\n\n可稍后重试；国内网络可设置环境变量\nHV_MODEL_MIRROR=https://ghfast.top/ 后重启。"
+                % (len(ok), len(failed)),
+            )
+        elif ok:
+            messagebox.showinfo("下载完成", "已下载 %d 个模型，可离线使用。" % len(ok))
+
+    # ---------------- 离线模型包
+    def _auto_import_bundles(self):
+        """启动时先把程序目录里的模型包 / 散装权重装进资源目录，避免无谓联网"""
+        try:
+            summary, installed = mb.auto_import(APP_HOME, BASE_DIR, log=self.log)
+        except Exception as exc:  # noqa: BLE001
+            self.log("自动导入离线模型失败：%s" % exc)
+            return
+        if installed:
+            self.log("已从本地导入 %d 个模型文件（%s）" % (len(installed), "、".join(summary)))
+        else:
+            self.log("未发现本地模型包，模型按需下载")
+
+    def _on_import_bundle(self):
+        path = filedialog.askopenfilename(
+            title="选择模型包（hivision-models-vX.zip）",
+            filetypes=[("模型包", "*.zip"), ("全部文件", "*.*")])
+        if not path:
+            return
+        self.log("准备导入模型包：%s" % os.path.basename(path))
+        self._start_import(lambda: mb.install(path, BASE_DIR, log=self.log), os.path.basename(path))
+
+    def _on_import_bundle_dir(self):
+        path = filedialog.askdirectory(title="选择存放 onnx 权重的文件夹")
+        if not path:
+            return
+        self.log("准备从文件夹导入权重：%s" % path)
+        self._start_import(lambda: (mb.scan_dir(path, BASE_DIR, log=self.log), []), path)
+
+    def _start_import(self, worker_fn, label):
+        if getattr(self, "_importing", False):
+            messagebox.showinfo("正在导入", "模型包正在导入中，请稍候。")
+            return
+        self._importing = True
+        for btn in (getattr(self, "btn_import", None), getattr(self, "btn_import_dir", None)):
+            try:
+                if btn is not None:
+                    btn.configure(state="disabled")
+            except Exception:
+                pass
+        try:
+            self.btn_import.configure(text="导入中…")
+        except Exception:
+            pass
+
+        def worker():
+            try:
+                result = worker_fn()
+            except Exception as exc:  # noqa: BLE001
+                result = exc
+            self.after(0, lambda: self._import_done(label, result))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _import_done(self, label, result):
+        self._importing = False
+        for btn in (getattr(self, "btn_import", None), getattr(self, "btn_import_dir", None)):
+            try:
+                if btn is not None:
+                    btn.configure(state="normal")
+            except Exception:
+                pass
+        try:
+            self.btn_import.configure(text="导入模型包（.zip）…")
+        except Exception:
+            pass
+
+        if isinstance(result, Exception):
+            self.log("模型包导入失败：%s" % result)
+            messagebox.showerror("导入失败", "模型包导入失败：\n\n%s" % result)
+            return
+
+        installed, skipped = result if isinstance(result, tuple) else (result, [])
+        self.log("模型包导入完成：%s（新增 %d 个，跳过 %d 个）"
+                 % (label, len(installed), len(skipped)))
+        self._refresh_model_hints()
+        miss = [n for n in mm.MODELS if not mm.is_present(n, self.WEIGHTS_ROOT)]
+        messagebox.showinfo(
+            "导入完成",
+            "来源：%s\n新增 %d 个模型文件，跳过 %d 个（已存在）\n\n%s"
+            % (label, len(installed), len(skipped),
+               "全部模型已就绪，可完全离线使用。" if not miss
+               else "仍缺 %d 个模型：%s" % (len(miss), "、".join(miss))))
 
     # ---------------- 主题
     # ---------------- 主题与重绘控制
@@ -1539,8 +1746,10 @@ def main():
         app.mainloop()
         return
     app.log("%s v%s 启动" % (APP_NAME, APP_VERSION))
+    app._auto_import_bundles()
     app.log("模型目录：%s" % os.path.join(BASE_DIR, "hivision", "creator", "weights"))
     app.log("输出目录：%s" % OUTPUT_ROOT)
+    app.after(500, app._ensure_models_on_start)
     app.mainloop()
 
 
