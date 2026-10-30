@@ -1,29 +1,29 @@
 
 # HivisionIDPhotos Desktop
 
-把 [HivisionIDPhotos](https://github.com/Zeyi-Lin/HivisionIDPhotos) 的证件照制作能力，做成一个 **Windows 原生桌面程序**（Tk + CustomTkinter）：不装浏览器、不起 Gradio 服务，双击就能出片。所有推理都在本机完成，照片不上传。
+基于 [HivisionIDPhotos](https://github.com/Zeyi-Lin/HivisionIDPhotos) 的证件照制作能力构建的 **Windows 原生桌面程序**（Tk + CustomTkinter）。抠图、换底、裁剪、排版全部在本机完成，照片不上传。
 
 <img src="docs/images/ui-main.png" width="880" alt="HivisionIDPhotos 桌面版主界面">
 
-> 本项目是面向 Windows 的**独立桌面封装发行版**，不是上游仓库的 fork。
+> 本项目为面向 Windows 的**独立桌面封装发行版**。
 > 上游代码以 Apache-2.0 许可使用，版权归原作者 Zeyi-Lin 及贡献者所有；本项目新增桌面 UI 层、打包工程与模型包机制。
 
-## 两个发行包，按需下一个
+## 发行包
 
-同一个版本同时提供「带模型」与「不带模型」两种包，外加可单独分发的模型包：
+同一版本提供「带模型」与「不带模型」两种包，另有可单独分发的模型包：
 
 | 发行包 | 解压体积 | 下载体积 | 内含权重 | 适合谁 |
 | --- | --- | --- | --- | --- |
-| **完整包** `HivisionIDPhotos-v1.1.2-full.zip` | 774MB | 565MB | 5 个 onnx 全部内置 | 无网络、不想等下载、拷给别人直接用 |
-| **精简包** `HivisionIDPhotos-v1.1.2-slim.zip` | 239MB | 107MB | 不含，首次按需下载 / 导入模型包 | 网络可用，想省磁盘与下载时间 |
+| **完整包** `HivisionIDPhotos-v1.1.2-full.zip` | 774MB | 565MB | 5 个 onnx 全部内置 | 离线环境、不便联网 |
+| **精简包** `HivisionIDPhotos-v1.1.2-slim.zip` | 239MB | 107MB | 不含，首次按需下载 / 导入模型包 | 可联网、按需加载模型 |
 | **模型包** `hivision-models-v1.1.2.zip` | — | 458MB | 5 个 onnx，独立分发 | 给精简包补模型，或只更新模型不换程序 |
 
 两个发行包**代码完全一致**，差别只有 `_internal\hivision\creator\**\weights\*.onnx` 是否存在。
 MTCNN 人脸检测用的 `onet / pnet / rnet.onnx`（合计几 MB，由 `mtcnn-runtime` 自带的必需件）两个包都有，不单列。
 
-获取方式：仓库 [Releases](https://github.com/kitblue/HivisionIDPhotos-Desktop/releases)（或 Gitea 同名仓库的 Release），解压即用，无需安装。
+获取方式：仓库 [Releases](https://github.com/kitblue/HivisionIDPhotos-Desktop/releases)（或 Gitea 同名仓库的 Release），解压后运行即可，无需安装。
 
-### 解压到哪里都行（长路径适配）
+### 长路径适配
 
 Windows 单条路径上限 260 字符，`_internal\onnxruntime\capi\onnxruntime_pybind11_state.pyd` 路径一旦超限，
 系统加载器直接报 `文件名或扩展名太长`，而且崩在 PyInstaller 引导阶段（`python311.dll` 都没加载完），
@@ -38,9 +38,9 @@ Python 代码来不及做任何补救。所以发行包把 exe 拆成了两层�
 短名不可用（磁盘关闭 8.3 支持）时自动降级为原路径启动，启动失败弹出提示引导换短路径。
 另有运行期 hook `app/pyi_rth_shortpath.py` 作为第二道防线（`sys._MEIPASS` 短名化 / 复制到 `%TEMP%\hidp_ort`）。
 
-实测：程序放在 291 字符深目录（pyd 全路径 278 字符）时，自检输出 5 张照片正常、GUI 正常运行。
+验证：程序放在 291 字符深目录（pyd 全路径 278 字符）时，自检输出 5 张照片正常，GUI 正常运行。
 
-## 三步出片
+## 使用流程
 
 <table>
 <tr>
@@ -88,18 +88,18 @@ Python 代码来不及做任何补救。所以发行包把 exe 拆成了两层�
 </tr>
 <tr>
 <td>右上角 ☾ / ☀ 一键切换浅色 / 深色皮肤，配色与滚动条同步换装。</td>
-<td>每个步骤的耗时、模型加载、输出路径都写在日志页签里，出问题一眼定位。</td>
+<td>每个步骤的耗时、模型加载、输出路径都记录在日志页签中，便于定位问题。</td>
 </tr>
 </table>
 
-## 模型：三种获取方式
+## 模型获取方式
 
-源码仓库**永远不含 onnx 权重**（`.gitignore` 排除，避免仓库膨胀与许可混乱），权重只以两种形态流通：内置进「完整包」，或单独打成的「模型包」。
+源码仓库不含 onnx 权重（已被 `.gitignore` 排除，避免仓库膨胀），权重以两种形态流通：内置进「完整包」，或单独打成「模型包」。
 
 | 方式 | 操作 | 适用 |
 | --- | --- | --- |
-| ① 内置 | 直接下**完整包**，权重已在 `_internal\hivision\creator\*\weights` | 想开箱即用、无网环境 |
-| ② 在线下载 | 精简包首次用到某模型时提示下载；或点「AI 模型」卡片里的 **下载 / 补齐模型** | 网络良好，按需只拿要用的 |
+| ① 内置 | 下载**完整包**，权重位于 `_internal\hivision\creator\*\weights` | 无网络环境 |
+| ② 在线下载 | 精简包首次用到某模型时提示下载；或点「AI 模型」卡片里的 **下载 / 补齐模型** | 可联网，按需下载 |
 | ③ 导入模型包 | 点卡片里的 **导入模型包（.zip）…** 选模型包；或把 zip 放进程序目录 `models\`，下次启动自动导入 | 内网机器、批量部署 |
 
 | 模型 | 用途 | 大小 | 来源 |
@@ -211,7 +211,7 @@ output/HivisionIDPhotos-v1.1.2-slim/  … 239MB + 同名 .zip 107MB
 ```bat
 python scripts\pack_models.py --verify                       :: 1. 打模型包（可选，给精简包用户补模型）
 python scripts\build_packages.py                             :: 2. 出两个发行包
-python scripts\gen_changelog.py --version 1.1.0              :: 3. 依 GitHub 提交自动生成 CHANGELOG.md
+python scripts\gen_changelog.py --version 1.1.2              :: 3. 依 GitHub 提交自动生成 CHANGELOG.md
 ```
 
 `gen_changelog.py` 读取仓库 tag 与提交（Conventional Commits 归类为新增功能 / 问题修复 / 文档 / 构建等小节），可 `--dry-run` 先看效果；凭据取自 `GITHUB_TOKEN` 或 Windows 凭据管理器。
@@ -226,4 +226,3 @@ python scripts\gen_changelog.py --version 1.1.0              :: 3. 依 GitHub �
 ## 致谢
 
 [Zeyi-Lin/HivisionIDPhotos](https://github.com/Zeyi-Lin/HivisionIDPhotos)、[ZHKKKe/MODNet](https://github.com/ZHKKKe/MODNet)、[briaai/RMBG-1.4](https://huggingface.co/briaai/RMBG-1.4)、[ZhengPeng7/BiRefNet](https://github.com/ZhengPeng7/BiRefNet)。
-*（内容由AI生成，仅供参考）*
