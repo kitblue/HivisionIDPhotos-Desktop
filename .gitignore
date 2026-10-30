@@ -1,0 +1,11 @@
+runtime/
+**/__pycache__/
+*.pyc
+*.pyo
+app/hivision/**/weights/*.onnx
+app/hivision/creator/weights/*.onnx
+照片输出/
+自检输出/
+shots/
+temp/
+*.log

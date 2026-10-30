@@ -1,0 +1,36 @@
+{
+  "frozen": false,
+  "base_dir": "C:\\Users\\ike\\hb\\HivisionIDPhotos\\app",
+  "app_home": "C:\\Users\\ike\\hb\\HivisionIDPhotos\\app",
+  "output_root": "C:\\Users\\ike\\hb\\HivisionIDPhotos\\app\\照片输出",
+  "ok": true,
+  "error": "",
+  "input_shape": [
+    1146,
+    764,
+    3
+  ],
+  "elapsed": 0.87,
+  "standard_shape": [
+    413,
+    295,
+    3
+  ],
+  "hd_shape": [
+    843,
+    601,
+    3
+  ],
+  "layout_shape": [
+    1205,
+    1795,
+    3
+  ],
+  "saved": [
+    "标准照_300dpi.png",
+    "高清照_300dpi.png",
+    "排版照_300dpi.png",
+    "模板照1_300dpi.png",
+    "模板照2_300dpi.png"
+  ]
+}
