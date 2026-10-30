@@ -1,3 +1,14 @@
+---
+AIGC:
+    Label: "1"
+    ContentProducer: 001191440300708461136T1XGW3
+    ProduceID: 257c07a97525093c65a112a601161c42_0eeba3eed47011f1a0da525400393706
+    ReservedCode1: fqfywRo4kr9hEO2tR5AwQ5tAAGFVaxOTIXaSuFDZ28CAK3yaLYPTqVO8LL5PqPJpX9uBLLAdHGi5+qS9VjdNkJKULTCUiVBfQ4JBJfzeCJxiGHoWoUaHOc0r/CBERXN3Vguy2PSq3NYqEJr7+gbQXWh3tRsmPyp2JwUsAVobBRJWPm560AugyyCBtGw=
+    ContentPropagator: 001191440300708461136T1XGW3
+    PropagateID: 257c07a97525093c65a112a601161c42_0eeba3eed47011f1a0da525400393706
+    ReservedCode2: fqfywRo4kr9hEO2tR5AwQ5tAAGFVaxOTIXaSuFDZ28CAK3yaLYPTqVO8LL5PqPJpX9uBLLAdHGi5+qS9VjdNkJKULTCUiVBfQ4JBJfzeCJxiGHoWoUaHOc0r/CBERXN3Vguy2PSq3NYqEJr7+gbQXWh3tRsmPyp2JwUsAVobBRJWPm560AugyyCBtGw=
+---
+
 # HivisionIDPhotos Desktop
 
 把 [HivisionIDPhotos](https://github.com/Zeyi-Lin/HivisionIDPhotos) 的证件照制作能力，做成一个 **Windows 原生桌面程序**（Tk + CustomTkinter）：不装浏览器、不起 Gradio 服务，双击就能出片。所有推理都在本机完成，照片不上传。
@@ -5,7 +16,22 @@
 <img src="docs/images/ui-main.png" width="880" alt="HivisionIDPhotos 桌面版主界面">
 
 > 本项目是面向 Windows 的**独立桌面封装发行版**，不是上游仓库的 fork。
-> 上游代码以 Apache-2.0 许可使用，版权归原作者 Zeyi-Lin 及贡献者所有；本项目新增桌面 UI 层、打包工程与模型在线获取逻辑。
+> 上游代码以 Apache-2.0 许可使用，版权归原作者 Zeyi-Lin 及贡献者所有；本项目新增桌面 UI 层、打包工程与模型包机制。
+
+## 两个发行包，按需下一个
+
+同一个版本同时提供「带模型」与「不带模型」两种包，外加可单独分发的模型包：
+
+| 发行包 | 解压体积 | 下载体积 | 内含权重 | 适合谁 |
+| --- | --- | --- | --- | --- |
+| **完整包** `HivisionIDPhotos-v1.1.0-full.zip` | 774MB | 565MB | 5 个 onnx 全部内置 | 无网络、不想等下载、拷给别人直接用 |
+| **精简包** `HivisionIDPhotos-v1.1.0-slim.zip` | 239MB | 107MB | 不含，首次按需下载 / 导入模型包 | 网络可用，想省磁盘与下载时间 |
+| **模型包** `hivision-models-v1.1.0.zip` | — | 458MB | 5 个 onnx，独立分发 | 给精简包补模型，或只更新模型不换程序 |
+
+两个发行包**代码完全一致**，差别只有 `_internal\hivision\creator\**\weights\*.onnx` 是否存在。
+MTCNN 人脸检测用的 `onet / pnet / rnet.onnx`（合计几 MB，由 `mtcnn-runtime` 自带的必需件）两个包都有，不单列。
+
+获取方式：仓库 [Releases](https://github.com/kitblue/HivisionIDPhotos-Desktop/releases)（或 Gitea 同名仓库的 Release），解压即用，无需安装。
 
 ## 三步出片
 
@@ -30,7 +56,7 @@
 | 背景 | 预设色 + 自定义 RGB / HEX + 美式背景 |
 | 渲染 | 纯色 / 上下渐变 / 中心渐变 |
 | 排版 | 六寸 / 五寸 / A4 / 3R / 4R，可加裁剪线、JPEG 输出、自定义 KB 与 DPI |
-| 模型 | 4 种抠图模型 + 2 种人脸检测可切换，选择时下方实时提示模型特点 |
+| 模型 | 4 种抠图模型 + 2 种人脸检测可切换，选择时下方实时提示模型特点；卡片底部显示本地模型「已就绪 / 缺几个」，可导入离线模型包 |
 | 调整 | 美颜（美白 / 亮度 / 对比度 / 饱和度 / 锐化）、头身比、头顶留白、人脸旋转对齐、水平翻转 |
 | 其他 | 文字水印（颜色 / 字号 / 透明度 / 角度 / 间距）、2 款模板照、多脸照片自动聚焦最大人脸 |
 
@@ -59,9 +85,15 @@
 </tr>
 </table>
 
-## 模型：在线获取，不随仓库分发
+## 模型：三种获取方式
 
-仓库与安装包里**都不包含 onnx 权重**，避免仓库膨胀与许可混乱。程序首次需要某个模型时提示用户确认后从官方源下载，之后完全离线推理。
+源码仓库**永远不含 onnx 权重**（`.gitignore` 排除，避免仓库膨胀与许可混乱），权重只以两种形态流通：内置进「完整包」，或单独打成的「模型包」。
+
+| 方式 | 操作 | 适用 |
+| --- | --- | --- |
+| ① 内置 | 直接下**完整包**，权重已在 `_internal\hivision\creator\*\weights` | 想开箱即用、无网环境 |
+| ② 在线下载 | 精简包首次用到某模型时提示下载；或点「AI 模型」卡片里的 **下载 / 补齐模型** | 网络良好，按需只拿要用的 |
+| ③ 导入模型包 | 点卡片里的 **导入模型包（.zip）…** 选模型包；或把 zip 放进程序目录 `models\`，下次启动自动导入 | 内网机器、批量部署 |
 
 | 模型 | 用途 | 大小 | 来源 |
 | --- | --- | --- | --- |
@@ -74,6 +106,33 @@
 * MTCNN 人脸检测由 `mtcnn-runtime` 包自带，无需单独下载。
 * 权重落盘位置：`app/hivision/creator/weights/`（RetinaFace 在 `app/hivision/creator/retinaface/weights/`），已被 `.gitignore` 排除。
 * 界面「AI 模型」卡片内有 **下载 / 补齐模型** 按钮，缺什么补什么。
+
+### 模型包（离线分发用）
+
+模型包是一个固定结构的 zip，解压后与程序资源目录一一对应，安装即复制：
+
+```
+hivision-models-v1.1.0.zip
+├─ manifest.json                    # 版本、每个模型的大小与 sha256、来源 URL
+└─ hivision/creator/…
+   ├─ weights/{hivision_modnet,modnet_photographic_portrait_matting,rmbg-1.4,birefnet-v1-lite}.onnx
+   └─ retinaface/weights/retinaface-resnet50.onnx
+```
+
+生成与校验：
+
+```bat
+python scripts\pack_models.py                          :: 用本地已下载的权重组包，输出 output\hivision-models-v<ver>.zip
+python scripts\pack_models.py --model rmbg-1.4 --verify :: 只打指定模型并校验 sha256
+python scripts\pack_models.py --out D:\hivision-models-v1.1.0.zip
+```
+
+安装方式三选一，校验失败会在日志里报出具体文件，不会写坏已有权重：
+
+* 界面「导入模型包（.zip）…」，装完自动刷新模型状态；
+* 把 zip 放到 `HivisionIDPhotos.exe` 同级 `models\` 目录，启动时自动导入；
+* 已有散装 onnx（例如从完整包拷出来），用「从文件夹导入权重…」或环境变量 `HV_MODELS_DIR` 指目录，按文件名对号入座。
+* 导入是**增量**的：已存在且大小一致的模型直接跳过，重复导入不会重复占用磁盘。
 
 ### 命令行预下载
 
@@ -107,25 +166,47 @@ python app\desktop_app.py
 HivisionIDPhotos-Desktop/
 ├─ app/
 │  ├─ desktop_app.py          # 桌面版主程序（UI + 引擎封装）
-│  ├─ model_manager.py        # 模型在线下载 / 完整性校验
+│  ├─ model_manager.py        # 模型清单、在线下载、完整性校验
+│  ├─ model_bundle.py         # 模型包：生成 / 校验 / 安装 / 启动自动导入
 │  ├─ demo/                   # 上游演示与文案（复用其尺寸、配色数据）
 │  └─ hivision/               # 上游算法核心（抠图、人脸检测、排版、水印）
 ├─ scripts/
-│  └─ download_models.py      # 命令行模型下载
+│  ├─ download_models.py      # 命令行模型下载
+│  ├─ pack_models.py          # 打模型包（hivision-models-vX.zip）
+│  ├─ build_packages.py       # 一键出 full / slim 两个发行包（含 zip）
+│  └─ gen_changelog.py        # 按提交记录自动生成 CHANGELOG.md
 ├─ docs/images/               # 本文档所用界面与输出示例图
+├─ CHANGELOG.md               # 自动生成的更新日志
 ├─ 启动.bat / 启动-调试.bat
 └─ 使用说明.txt
 ```
 
 ## 打包（PyInstaller）
 
+一条命令出两个包，代码同一份，只在最后决定要不要删权重：
+
 ```bat
-runtime\python.exe -m PyInstaller --noconfirm --windowed --name HivisionIDPhotos-Desktop ^
-  --add-data "app\assets;assets" --add-data "app\demo;demo" ^
-  --add-data "app\hivision;hivision" --icon app\assets\hivisionai.ico app\desktop_app.py
+python scripts\build_packages.py                      :: full + slim 都出
+python scripts\build_packages.py --variant slim       :: 只出精简包
+python scripts\build_packages.py --variant full --keep-dir --no-zip
 ```
 
-打包产物**不含模型权重**，分发体积约几十 MB；用户首次运行时按需下载。若要做完全离线绿色包，可在打包后把 weights 目录手工复制进 `_internal\hivision\creator\weights`。
+脚本做的事：`PyInstaller --onedir`（窗口模式、`--add-data` 拷 hivision / assets / demo、`--collect-all mtcnnruntime`）→ 构建完对 slim 包剥离 `_internal` 下的 5 个 onnx → 写各自的使用说明 → 压缩成 zip，输出到 `output/`：
+
+```
+output/HivisionIDPhotos-v1.1.0-full/  … 774MB + 同名 .zip 565MB
+output/HivisionIDPhotos-v1.1.0-slim/  … 239MB + 同名 .zip 107MB
+```
+
+发版顺序建议：
+
+```bat
+python scripts\pack_models.py --verify                       :: 1. 打模型包（可选，给精简包用户补模型）
+python scripts\build_packages.py                             :: 2. 出两个发行包
+python scripts\gen_changelog.py --version 1.1.0              :: 3. 依 GitHub 提交自动生成 CHANGELOG.md
+```
+
+`gen_changelog.py` 读取仓库 tag 与提交（Conventional Commits 归类为新增功能 / 问题修复 / 文档 / 构建等小节），可 `--dry-run` 先看效果；凭据取自 `GITHUB_TOKEN` 或 Windows 凭据管理器。
 
 ## 许可
 
@@ -137,3 +218,4 @@ runtime\python.exe -m PyInstaller --noconfirm --windowed --name HivisionIDPhotos
 ## 致谢
 
 [Zeyi-Lin/HivisionIDPhotos](https://github.com/Zeyi-Lin/HivisionIDPhotos)、[ZHKKKe/MODNet](https://github.com/ZHKKKe/MODNet)、[briaai/RMBG-1.4](https://huggingface.co/briaai/RMBG-1.4)、[ZhengPeng7/BiRefNet](https://github.com/ZhengPeng7/BiRefNet)。
+*（内容由AI生成，仅供参考）*
