@@ -1,17 +1,41 @@
-﻿HivisionIDPhotos 证件照制作工具 · Windows 桌面版 v1.0.1
+HivisionIDPhotos 证件照制作工具 · Windows 桌面版 v1.1.0
 ================================================================
 
-一、怎么启动
+一、先分清你拿到的是哪个包
 --------------
-1. 把整个 HivisionIDPhotos 文件夹解压到磁盘根目录附近（例如 D:\HivisionIDPhotos），
-   路径尽量短、尽量不含中文，避免超出 Windows 260 字符路径限制。
-2. 双击「启动.bat」，程序窗口会自动打开。
-   · 若窗口没出现，改双击「启动-调试.bat」，控制台里会显示具体错误信息。
+本版本提供两种发行包，代码完全一样，只有「有没有模型权重」的区别：
 
-不需要安装 Python、不需要联网、不需要下载模型、不打开浏览器。
-所有推理都在本机完成，5 个 ONNX 模型已内置在 app\hivision\creator\ 下。
+  · HivisionIDPhotos-v1.1.0-full  完整包：5 个 onnx 模型已内置，解压即用，全程离线。
+  · HivisionIDPhotos-v1.1.0-slim  精简包：不含模型，体积小；首次用到某模型时按需下载，
+                                  或导入官方模型包 hivision-models-v1.1.0.zip。
+  · hivision-models-v1.1.0.zip    模型包：可单独分发，用来给精简包补模型。
 
-二、能做什么（与网页版一致）
+MTCNN 人脸检测用的 onet/pnet/rnet.onnx（几 MB）两个包都自带，不用管。
+
+二、怎么启动
+--------------
+1. 把 zip 解压到一个较短的路径，例如 D:\HivisionIDPhotos。
+   路径尽量短、尽量不含中文，避免触发 Windows 260 字符路径限制（onnxruntime 对此敏感）。
+2. 双击 HivisionIDPhotos.exe，程序窗口打开。
+   · 若窗口没出现，用命令行在同一目录执行 HivisionIDPhotos.exe，可以看到报错信息。
+
+不需要安装 Python、不打开浏览器，所有推理都在本机完成，照片不上传。
+
+三、精简包怎么把模型补齐（三选一）
+--------------
+1. 启动时若提示缺模型，点「是」从官方源下载（默认只用 24.7MB 的 hivision_modnet，
+   选 rmbg-1.4 / birefnet 才会下大文件）。
+2. 界面左侧「AI 模型」卡片 ->「下载 / 补齐模型」，缺什么补什么；
+   卡片底部一行会显示「本地模型：N/5 已就绪」，缺几个一目了然。
+3. 点「导入模型包（.zip）…」选 hivision-models-v1.1.0.zip；
+   或把该 zip 放到 exe 同级的 models\ 文件夹，下次启动自动导入。
+   已有散装 onnx 的，用「从文件夹导入权重…」按文件名自动对号入座。
+   导入是增量的：已存在且大小一致的模型直接跳过，可以放心重复导入。
+
+国内网络慢时，可在启动前设置镜像前缀（官方源仍作兜底）：
+   set HV_MODEL_MIRROR=https://ghfast.top/
+
+四、能做什么（与网页版一致）
 --------------
 · 尺寸：尺寸列表（一寸/二寸/小一寸…）/ 只换底 / 自定义像素 / 自定义毫米
 · 背景：蓝、白、红、深蓝、浅灰、黑 + 美式证件照 + 自定义 RGB + 自定义 HEX
@@ -26,9 +50,10 @@
 · 插件：人脸旋转对齐、水平翻转、JPEG 格式输出
 · 模板照：内置 2 款模板排版
 
-三、产物在哪
+五、产物在哪
 --------------
-每次点「开始制作」，结果自动保存到：app\照片输出\<时间戳_尺寸>\
+每次点「开始制作」，结果自动保存到 exe 同级目录：
+  照片输出\<时间戳_尺寸>\
   · 标准照_300dpi.png（按设定 KB 压缩）
   · 高清照_300dpi.png
   · 排版照_300dpi.png
@@ -38,41 +63,47 @@
 
 界面右下角「保存当前预览」可单独另存任意一张；「打开输出目录」直接定位文件夹。
 
-四、性能参考（本机 CPU 实测）
+六、性能参考（本机 CPU 实测）
 --------------
 · hivision_modnet + mtcnn：单张 0.6-1.0 秒
 · rmbg-1.4：约 2-4 秒
 · birefnet-v1-lite：首次加载 7-10 秒，单张约 17-27 秒（画质最好，速度最慢）
 首次启动约 1-2 秒完成界面加载，模型按需加载。
 
-五、目录结构
+七、目录结构（发行包）
 --------------
-HivisionIDPhotos\
-  ├─ 启动.bat                 主程序入口（无控制台窗口）
-  ├─ 启动-调试.bat            排错用，显示控制台日志
-  ├─ 使用说明.txt             本文件
-  ├─ runtime\                内置 Python 3.11 运行时 + 全部依赖（numpy/opencv/onnxruntime/pillow/mtcnn）
-  └─ app\                    程序本体
-       ├─ desktop_app.py      桌面版主程序（Tkinter 原生界面）
-       ├─ hivision\           上游算法库与 5 个 ONNX 模型
-       ├─ demo\               LOCALES 文案、模板资源、示例图片
-       ├─ assets\             模板素材
-       └─ 照片输出\           结果目录（首次运行自动创建）
+HivisionIDPhotos-v1.1.0-<full|slim>\
+  ├─ HivisionIDPhotos.exe      主程序
+  ├─ 使用说明.txt              本文件
+  ├─ models\                   （可选）放模型包 zip 或散装 onnx，启动自动导入
+  ├─ 照片输出\                 结果目录（首次制作自动创建）
+  └─ _internal\                运行时与资源
+       └─ hivision\creator\...
+          ├─ weights\           4 个抠图模型（slim 包为空）
+          └─ retinaface\weights\retinaface-resnet50.onnx（slim 包为空）
 
-六、来源与许可
+源码仓库另含 app\、scripts\（download_models / pack_models / build_packages / gen_changelog）
+与 CHANGELOG.md，见 README。
+
+八、来源与许可
 --------------
-算法与本项目来自开源项目 HivisionIDPhotos（Zeyi-Lin），MIT License，
-上游代码版本 master@5c191e25。模型权重以原许可分发，仅供个人学习使用。
-桌面版界面为本次适配新增，不修改上游算法逻辑。
+算法与上游项目来自开源项目 HivisionIDPhotos（Zeyi-Lin），Apache-2.0（上游早期声明 MIT），
+上游代码版本 master@5c191e25。桌面 UI 层、打包工程、模型包机制为本项目新增。
+RMBG-1.4 权重为非商用许可，商用请改用其它抠图模型；BiRefNet 遵循其原仓库许可。
 
-七、常见问题
+九、常见问题
 --------------
-Q: 双击启动.bat 闪退？
-A: 双击「启动-调试.bat」看报错。多数是路径过长（解压到短路径）或杀软拦截 pythonw.exe。
+Q: 双击 exe 没反应 / 闪退？
+A: 路径过长或含特殊字符最常见，换短路径（如 D:\IDPhotos）再试；也可能被杀软拦截，加白名单。
 
-Q: 提示找不到模型 / 推理报错？
-A: 确认 app\hivision\creator\weights\ 下 4 个 .onnx 与 app\hivision\creator\retinaface\weights\
-   下 1 个 .onnx 都在（合计约 540MB）。
+Q: 提示缺模型 / 推理报错？
+A: 完整包请确认 _internal\hivision\creator\weights\ 下 4 个 .onnx、
+   _internal\hivision\creator\retinaface\weights\ 下 1 个 .onnx 存在（合计约 535MB）；
+   精简包请按第三节补齐模型，日志页签会写明缺哪一个。
+
+Q: 模型包导入失败？
+A: 模型包已在导入时校验大小与 sha256，失败会提示具体文件。常见原因是下载不完整，
+   重新下载 zip 再导入；不要手工改动 zip 内部结构。
 
 Q: 人脸检测失败？
 A: 换「人脸检测模型」为 retinaface-resnet50 再试；单人正脸效果最好。
