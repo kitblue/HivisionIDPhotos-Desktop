@@ -14,7 +14,7 @@ HivisionIDPhotos 桌面版（Windows 原生 UI）
     · 人脸旋转对齐 / 水平翻转 / JPEG 输出
     · 模板照（2 款）
 
-所有推理在本地完成，内置模型，不联网、不依赖浏览器。
+模型权重不随包分发，首次需要时从官方源在线下载到本地，之后完全离线推理。
 """
 
 import os
@@ -37,7 +37,7 @@ if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
 APP_NAME = "HivisionIDPhotos 证件照制作工具（桌面版）"
-APP_VERSION = "1.0.5"
+APP_VERSION = "1.0.6"
 
 
 def _enable_high_dpi():
@@ -124,6 +124,7 @@ from hivision.creator.choose_handler import (
 )
 from hivision.plugin.template.template_calculator import generte_template_photo
 from demo.locales import LOCALES
+import model_manager as mm
 
 import tkinter as tk
 from tkinter import filedialog, messagebox
@@ -880,6 +881,11 @@ class DesktopApp(ctk.CTk):
         self.lbl_face_hint = ctk.CTkLabel(b, text="", font=self.f_small, text_color=C_MUTED,
                                           anchor="w", justify="left", wraplength=330)
         self.lbl_face_hint.pack(fill="x")
+        self.btn_models = ctk.CTkButton(b, text="下载 / 补齐模型", height=30, corner_radius=8,
+                                        font=self.f_small, fg_color=C_SOFT,
+                                        hover_color=C_SOFT_HOVER, text_color=C_TEXT,
+                                        command=self._on_download_models)
+        self.btn_models.pack(fill="x", pady=(8, 0))
         self._refresh_model_hints()
 
         # ---- 构图
@@ -1072,6 +1078,91 @@ class DesktopApp(ctk.CTk):
                 text="特点：%s" % self._hint_of(FACE_DETECT_HINTS, self.var_face.get()))
         except Exception:
             pass
+
+    # ---------------- 模型在线获取
+    WEIGHTS_ROOT = os.path.join(BASE_DIR, "hivision", "creator", "weights")
+
+    def _needed_models(self):
+        """当前选择真正需要的模型：当前抠图模型 + （可选）RetinaFace 人脸检测"""
+        names = [self.var_matting.get()]
+        if self.var_face.get() == "retinaface-resnet50":
+            names.append("retinaface-resnet50")
+        return [n for n in names if n in mm.MODELS]
+
+    def _missing_of(self, names):
+        return [n for n in names if not mm.is_present(n, self.WEIGHTS_ROOT)]
+
+    def _ensure_models_on_start(self):
+        """启动时只检查当前所需模型，缺了先问用户再下载，不静默联网"""
+        miss = self._missing_of(self._needed_models())
+        if not miss:
+            self.log("模型就绪：%s" % self.var_matting.get())
+            return
+        size = sum(mm.MODELS[n]["size"] for n in miss) / 1048576.0
+        desc = "、".join(mm.MODELS[n]["desc"] for n in miss)
+        self.log("缺少模型：%s" % "、".join(miss))
+        if messagebox.askyesno(
+            "需要下载模型",
+            "当前选择的模型尚未下载：\n\n%s\n\n共约 %.0fMB，是否立即从官方源下载？\n"
+            "（下载后可完全离线使用；取消后可在「AI 模型」卡片点击「下载 / 补齐模型」重试）"
+            % (desc, size),
+        ):
+            self._download_models(miss)
+        else:
+            self.log("已跳过模型下载，制作前请先补齐模型")
+
+    def _on_download_models(self):
+        miss = self._missing_of(list(mm.MODELS))
+        if not miss:
+            messagebox.showinfo("模型齐全", "全部模型均已下载，可离线使用。")
+            return
+        size = sum(mm.MODELS[n]["size"] for n in miss) / 1048576.0
+        lines = "\n".join("· %s（%.0fMB）" % (mm.MODELS[n]["desc"], mm.MODELS[n]["size"] / 1048576.0) for n in miss)
+        if messagebox.askyesno("下载模型", "将下载以下 %d 个模型，共约 %.0fMB：\n\n%s\n\n是否继续？"
+                               % (len(miss), size, lines)):
+            self._download_models(miss)
+
+    def _download_models(self, names):
+        if getattr(self, "_downloading", False):
+            messagebox.showinfo("正在下载", "模型正在下载中，请稍候。")
+            return
+        self._downloading = True
+        try:
+            self.btn_models.configure(state="disabled", text="下载中…")
+        except Exception:
+            pass
+
+        def worker():
+            state = {"t": 0.0}
+
+            def progress(done, total):
+                now = time.time()
+                if now - state["t"] < 0.5 and done != total:  # 限流，避免刷屏
+                    return
+                state["t"] = now
+                pct = 100.0 * done / total if total else 0
+                self.log("下载中 %.1f%%  %.1f/%.1f MB" % (pct, done / 1048576.0, total / 1048576.0))
+
+            ok, failed = mm.download_many(names, self.WEIGHTS_ROOT, progress=progress,
+                                          log=lambda m: self.log(m))
+            self.after(0, lambda: self._download_done(ok, failed))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _download_done(self, ok, failed):
+        self._downloading = False
+        try:
+            self.btn_models.configure(state="normal", text="下载 / 补齐模型")
+        except Exception:
+            pass
+        if failed:
+            messagebox.showwarning(
+                "部分模型下载失败",
+                "成功 %d 个，失败 %d 个。\n\n可稍后重试；国内网络可设置环境变量\nHV_MODEL_MIRROR=https://ghfast.top/ 后重启。"
+                % (len(ok), len(failed)),
+            )
+        elif ok:
+            messagebox.showinfo("下载完成", "已下载 %d 个模型，可离线使用。" % len(ok))
 
     # ---------------- 主题
     # ---------------- 主题与重绘控制
@@ -1541,6 +1632,7 @@ def main():
     app.log("%s v%s 启动" % (APP_NAME, APP_VERSION))
     app.log("模型目录：%s" % os.path.join(BASE_DIR, "hivision", "creator", "weights"))
     app.log("输出目录：%s" % OUTPUT_ROOT)
+    app.after(500, app._ensure_models_on_start)
     app.mainloop()
 
 

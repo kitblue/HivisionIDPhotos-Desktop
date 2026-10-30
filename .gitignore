@@ -9,3 +9,11 @@ app/hivision/creator/weights/*.onnx
 shots/
 temp/
 *.log
+
+# 模型权重与运行产物（权重在线下载，不入库）
+*.part
+app/ui_diag.json
+app/selftest.json
+app/*.bak-*
+app/照片输出/
+app/自检输出/
