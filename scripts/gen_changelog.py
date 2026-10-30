@@ -166,9 +166,14 @@ def parse_commit(commit):
     known = {c for c, _ in CATEGORIES}
     if ctype not in known:
         ctype = "chore"
+    details = []
+    for line in msg.splitlines()[1:]:
+        item = line.strip().lstrip("-*·").strip()
+        if item and not item.lower().startswith(("signed-off-by", "co-authored-by", "see ")):
+            details.append(item)
     date = ((commit.get("commit") or {}).get("committer") or {}).get("date", "")[:10]
     return {"type": ctype, "scope": scope, "subject": subject, "date": date,
-            "sha": (commit.get("sha") or "")[:7]}
+            "sha": (commit.get("sha") or "")[:7], "details": details}
 
 
 def clean_subject(subject):
@@ -193,6 +198,8 @@ def render_section(title, date, commits):
         for item in items:
             scope = "**%s**：" % item["scope"] if item["scope"] else ""
             lines.append("- %s%s（`%s`）" % (scope, clean_subject(item["subject"]), item["sha"]))
+            for detail in item.get("details", []):
+                lines.append("  - " + detail)
         lines.append("")
     return lines
 
